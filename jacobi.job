@@ -1,0 +1,19 @@
+#!/bin/bash
+#PBS -m ae
+
+#PBS -N jacobi
+#PBS -o jacobi.out
+#PBS -joe
+#PBS -q teaching
+#PBS -l nodes=1:ppn=16
+#PBS -l walltime=00:02:00
+#PBS -l hostlist=\"node31-0[30-39]^\"
+
+cd $PBS_O_WORKDIR
+
+echo > Running on host `hostname`
+echo > Time is `date`
+echo > Directory is `pwd`
+echo > PBS job ID is $PBS_JOBID
+
+time make -j 16 bluecrystal-job
