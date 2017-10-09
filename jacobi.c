@@ -52,6 +52,7 @@ int run(float *A, float *b, float *x, float *xtmp)
   itr = 0;
   do
   {
+    sqdiff = 0.0;
     // Perfom Jacobi iteration
     for (row = 0; row < N; row++)
     {
@@ -59,24 +60,18 @@ int run(float *A, float *b, float *x, float *xtmp)
       for (col = 0; col < N; col++)
       {
         if (row != col)
-          dot += A[row + col*N] * x[col];
+          dot += A[row*N + col] * x[col];
       }
-      xtmp[row] = (b[row] - dot) / A[row + row*N];
-    }
+      xtmp[row] = (b[row] - dot) / A[row*N + row];
 
-    // Swap pointers
-    ptrtmp = x;
-    x      = xtmp;
-    xtmp   = ptrtmp;
-
-    // Check for convergence
-    sqdiff = 0.0;
-    for (row = 0; row < N; row++)
-    {
-      diff    = xtmp[row] - x[row];
+      // Check for convergence
+      diff    = x[row] - xtmp[row];
       sqdiff += diff * diff;
     }
 
+    ptrtmp = x;
+    x      = xtmp;
+    xtmp   = ptrtmp;
     itr++;
   } while ((itr < MAX_ITERATIONS) && (sqrt(sqdiff) > CONVERGENCE_THRESHOLD));
 
@@ -108,10 +103,10 @@ int main(int argc, char *argv[])
     for (int col = 0; col < N; col++)
     {
       float value = rand()/(float)RAND_MAX;
-      A[row + col*N] = value;
+      A[row*N + col] = value;
       rowsum += value;
     }
-    A[row + row*N] += rowsum;
+    A[row*N + row] += rowsum; // Add the row sum to the diagonal
     b[row] = rand()/(float)RAND_MAX;
     x[row] = 0.0;
   }
@@ -128,7 +123,7 @@ int main(int argc, char *argv[])
     float tmp = 0.0;
     for (int col = 0; col < N; col++)
     {
-      tmp += A[row + col*N] * x[col];
+      tmp += A[row*N + col] * x[col];
     }
     tmp = b[row] - tmp;
     err += tmp*tmp;

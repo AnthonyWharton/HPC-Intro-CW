@@ -11,9 +11,9 @@
 
 cd $PBS_O_WORKDIR
 
-echo > Running on host `hostname`
-echo > Time is `date`
-echo > Directory is `pwd`
-echo > PBS job ID is $PBS_JOBID
+echo "> Running on host `hostname`"
+echo "> Time is `date`"
+echo "> Directory is `pwd`"
+echo "> PBS job ID is $PBS_JOBID"
 
 time make -j 16 bluecrystal-job

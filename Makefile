@@ -43,3 +43,6 @@ clean:
 	rm -rf bin
 
 bluecrystal-job: print-flags compile-all run-all
+
+bcsumit:
+	bcsubmit -j jacobi.job
