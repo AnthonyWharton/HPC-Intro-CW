@@ -57,15 +57,18 @@ int run(float *A, float *b, float *x, float *xtmp)
     for (row = 0; row < N; row++)
     {
       dot = 0.0;
-      for (col = 0; col < N; col++)
+      for (col = 0; col < row; col++)
       {
-        if (row != col)
+          dot += A[row*N + col] * x[col];
+      }
+      for (col = row+1; col < N; col++)
+      {
           dot += A[row*N + col] * x[col];
       }
       xtmp[row] = (b[row] - dot) / A[row*N + row];
 
       // Check for convergence
-      diff    = x[row] - xtmp[row];
+      diff = x[row] - xtmp[row];
       sqdiff += diff * diff;
     }
 

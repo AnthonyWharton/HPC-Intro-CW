@@ -1,10 +1,14 @@
-CC = cc
-COMPILERS := cc gcc icc
-OLEVELS := 0 1 2 3
+COMPILER = gcc
+GCC = gcc
+ICC = icc
+COMPILERS := gcc icc
+OLEVELS := 2 3
 
-CFLAGS = -std=c99 -Wall
+CFLAGS  = -std=c99 -Wall
 LDFLAGS = -lm
-OUTPUT = ./bin/
+GCCFLAG = -ffast-math -ftree-vectorizer-verbose=2
+ICCFLAG = -xHOST -ipo -no-prec-div -fp-model fast=2 -funroll-loops -qopt-report=5
+OUTPUT  = ./bin/
 
 JACOBI-ITER = 20000
 JACOBI-NORD = 1000
@@ -25,14 +29,19 @@ print-flags:
 $(OUTPUT):
 	mkdir -p $(OUTPUT)
 
-$(OLEVELS): $(OUTPUT)
-	$(CC) -O$@ $(CFLAGS) -o $(OUTPUT)jacobi-$(CC)-O$@ jacobi.c $(LDFLAGS)
-	@echo $(OUTPUT)jacobi-$(CC)-O$@ >> $(OUTPUT)to-run
+$(OLEVELS):
+ifeq ($(COMPILER), $(GCC))
+	$(COMPILER) -O$@ $(CFLAGS) $(GCCFLAG) -o $(OUTPUT)jacobi-$(COMPILER)-O$@ jacobi.c $(LDFLAGS)
+endif
+ifeq ($(COMPILER), $(ICC))
+	$(COMPILER) -O$@ $(CFLAGS) $(ICCFLAG) -o $(OUTPUT)jacobi-$(COMPILER)-O$@ jacobi.c $(LDFLAGS)
+endif
+	@echo $(OUTPUT)jacobi-$(COMPILER)-O$@ >> $(OUTPUT)to-run
 
-_compile_olevels: $(OLEVELS)
+_compile_olevels: $(OUTPUT) $(OLEVELS)
 
 $(COMPILERS):
-	@$(MAKE) _compile_olevels --no-print-directory CC="$@"
+	@$(MAKE) _compile_olevels --no-print-directory COMPILER="$@"
 
 compile-all: $(COMPILERS)
 
@@ -40,9 +49,10 @@ run-all: $(OUTPUT)to-run
 	cat $(OUTPUT)to-run | xargs -Iz bash -c 'printf "\n> RUNNING z\n"; z --norder $(JACOBI-NORD) --iterations $(JACOBI-ITER)'
 
 clean:
-	rm -rf bin
+	rm -rf binr
+	rm -rf *.out
 
 bluecrystal-job: print-flags compile-all run-all
 
-bcsumit:
+bcsubmit:
 	bcsubmit -j jacobi.job
