@@ -7,7 +7,7 @@ OLEVELS := 2 3
 CFLAGS  = -std=c99 -Wall
 LDFLAGS = -lm
 GCCFLAG = -ffast-math -ftree-vectorizer-verbose=2
-ICCFLAG = -xHOST -ipo -no-prec-div -fp-model fast=2 -funroll-loops -qopt-prefetch=4 -qopt-report=5
+ICCFLAG = -xHOST -ipo -no-prec-div -fp-model fast=2 -funroll-loops -qopt-prefetch=4 -mkl=sequential -qopt-report=5
 OUTPUT  = ./bin/
 
 JACOBI-ITER = 20000
