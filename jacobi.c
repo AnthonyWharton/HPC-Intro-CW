@@ -29,6 +29,18 @@ static int MAX_ITERATIONS;
 static int SEED;
 static float CONVERGENCE_THRESHOLD;
 
+static int N = 1000;
+static int MAX_ITERATIONS = 20000;
+static int SEED;
+static float CONVERGENCE_THRESHOLD = 0.000100;
+
+static int ROWBSIZE = 500;   // Size in rows of one block
+static int COLBSIZE = 16; // Size in columns of one block
+static int ROWB;           // Amount of blocks in the row axis
+static int COLB;           // Amount of blocks in the column axis
+
+#define MIN(X,Y) ((X) < (Y) ? (X) : (Y))
+
 #define SEPARATOR "------------------------------------\n"
 
 // Return the current time in seconds since the Epoch
@@ -41,35 +53,45 @@ void parse_arguments(int argc, char *argv[]);
 // Returns the number of iterations performed
 int run(float *A, float *b, float *x, float *xtmp)
 {
-  int itr;
-  int row, col;
-  float dot;
+  int row, rowb, col, colb;
+  float *dot = malloc(ROWBSIZE*sizeof(float));
   float diff;
-  float sqdiff;
+  float sqdiff = 0.0;
   float *ptrtmp;
 
   // Loop until converged or maximum iterations reached
-  itr = 0;
+  int itr = 0;
   do
   {
-    sqdiff = 0.0;
     // Perfom Jacobi iteration
-    for (row = 0; row < N; row++)
+    sqdiff = 0.0;
+    // Loop through row blocks
+    for (rowb = 0; rowb < ROWB; rowb++)
     {
-      dot = 0.0;
-      for (col = 0; col < row; col++)
+      memset(dot, 0, ROWBSIZE*sizeof(float));
+      // Loop through column blocks
+      for (colb = 0; colb < COLB; colb++)
       {
-          dot += A[row*N + col] * x[col];
+        // Loop through individual rows within row block
+        for (row = rowb*ROWBSIZE; row < MIN((rowb+1)*ROWBSIZE, N); row++)
+        {
+          // Loop through individual columns in column block
+          for (col = colb*COLBSIZE; col < MIN((colb+1)*COLBSIZE, N); col++)
+          {
+            // Perform operation to temporary dot storage array
+            dot[row-rowb*ROWBSIZE] += A[row*N + col] * x[col];
+          }
+        }
       }
-      for (col = row+1; col < N; col++)
+      // Finished a full row, perform end of row jacobi method operation
+      for (row = rowb*ROWBSIZE; row < MIN((rowb+1)*ROWBSIZE, N)-1; row++)
       {
-          dot += A[row*N + col] * x[col];
+        dot[row - rowb*ROWBSIZE] -= A[row*N + row] * x[row];
+        xtmp[row] = (b[row] - dot[row - rowb*ROWBSIZE]) / A[row*N + row];
+        // Also calculate difference for convergence threshold
+        diff = x[row] - xtmp[row];
+        sqdiff += diff * diff;
       }
-      xtmp[row] = (b[row] - dot) / A[row*N + row];
-
-      // Check for convergence
-      diff = x[row] - xtmp[row];
-      sqdiff += diff * diff;
     }
 
     ptrtmp = x;
@@ -78,6 +100,8 @@ int run(float *A, float *b, float *x, float *xtmp)
     itr++;
   } while ((itr < MAX_ITERATIONS) && (sqrt(sqdiff) > CONVERGENCE_THRESHOLD));
 
+  free(dot);
+  dot = NULL;
   return itr;
 }
 
@@ -89,6 +113,9 @@ int main(int argc, char *argv[])
   float *b    = malloc(N*sizeof(float));
   float *x    = malloc(N*sizeof(float));
   float *xtmp = malloc(N*sizeof(float));
+
+  ROWB = N / ROWBSIZE;
+  COLB = N / COLBSIZE;
 
   printf(SEPARATOR);
   printf("Matrix size:            %dx%d\n", N, N);
@@ -144,9 +171,13 @@ int main(int argc, char *argv[])
   printf(SEPARATOR);
 
   free(A);
+  A = NULL;
   free(b);
+  b = NULL;
   free(x);
+  x = NULL;
   free(xtmp);
+  xtmp = NULL;
 
   return 0;
 }
