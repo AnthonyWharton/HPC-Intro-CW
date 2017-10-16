@@ -20,7 +20,7 @@ ICCFLAG = -xHOST -ipo -no-prec-div -fp-model fast=2 -fp-speculation=fast -funrol
 OUTPUT  = ./bin/
 
 JACOBI-ITER = 20000
-JACOBI-NORD = 1000
+JACOBI-NORD = 2000
 
 ################################################################################
 ############################ MISC. TARGETS #####################################
@@ -89,15 +89,15 @@ run-all: compile-all $(OUTPUT)to-run
 # Compiles the program with all compilers specified in $(COMPILERS) and with
 # O Levels specified in $(OLEVELS), and then runs all programs through gprof.
 profile-all: compile-all-with-profiling $(OUTPUT)to-run
-	@cat $(OUTPUT)to-run | xargs -Iz bash -c ' \
+	cat $(OUTPUT)to-run | xargs -Iz bash -c ' \
 		printf "\n> PROFILING z\n"; \
-		z --norder $(JACOBI-NORD) --iterations $(JACOBI-ITER);
+		z --norder $(JACOBI-NORD) --iterations $(JACOBI-ITER); \
 		gprof -l z >> $(OUTPUT)/profile'
 
 # Cleans all output files.
 clean:
-	rm -rf bin
-	rm -rf *.out
+	rm -rvf bin
+	rm -rvf *.out
 
 # Bluecrystal Job Target
 bluecrystal-job: compile-all run-all
