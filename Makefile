@@ -89,7 +89,7 @@ run-all: compile-all $(OUTPUT)to-run
 # Compiles the program with all compilers specified in $(COMPILERS) and with
 # O Levels specified in $(OLEVELS), and then runs all programs through gprof.
 profile-all: compile-all-with-profiling $(OUTPUT)to-run
-	@cat $(OUTPUT)to-run | xargs -Iz bash -c ' \
+	cat $(OUTPUT)to-run | xargs -Iz bash -c ' \
 		printf "\n> PROFILING z\n"; \
 		z --norder $(JACOBI-NORD) --iterations $(JACOBI-ITER);
 		gprof -l z >> $(OUTPUT)/profile'
