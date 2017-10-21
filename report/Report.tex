@@ -1,0 +1,243 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%  Article LaTeX style, by Anthony Wharton
+\documentclass[10pt,twocolumn,a4paper]{article}
+\usepackage[backend=bibtex,style=numeric-comp,sorting=none]{biblatex}
+\usepackage[compact]{titlesec}
+\usepackage{geometry}
+\usepackage{lipsum}
+\usepackage{listings}
+\usepackage{graphicx}
+\usepackage{xspace}
+\usepackage{textcomp}
+\usepackage{array}
+\usepackage{caption}
+\usepackage{titling}
+\usepackage{calc}
+\usepackage{setspace}
+\usepackage{changepage}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%  Package Setup
+
+% Set up borders and column separation
+\setlength{\columnsep}{0.7cm}
+\geometry{left=1.2cm,right=1.2cm,top=1cm,bottom=1.2cm}
+
+% Set up title spacing
+% \titlespacing{command}{left spacing}{before spacing}{after spacing}[right]
+\titlespacing\section{0pt}{1pt}{1pt}
+\titlespacing\subsection{0pt}{1pt}{1pt}
+\titlespacing\subsubsection{0pt}{1pt}{1pt}
+
+
+% Set up paragraph spacing and enforce hyphenation penalty
+\setlength{\parindent}{0.7em}
+\setlength{\parskip}{0.5em}
+\setlength{\textfloatsep}{0.25cm}
+\setlength{\droptitle}{-1.3cm}
+\setlength{\footskip}{\paperheight
+    -(2cm+\voffset+\topmargin+\headheight+\headsep+\textheight)
+    -1.2cm}
+\hyphenpenalty 500
+
+% Set up figure/table captions
+% \DeclareCaptionLabelSeparator{emdash}{\textemdash}
+\DeclareCaptionFont{mysize}{\fontsize{9}{9.6}\selectfont}
+\captionsetup{font=mysize,justification=centering}
+
+% Set up bibliography
+\bibliography{references}
+\renewcommand*{\bibfont}{\small}
+
+% Set up more intelligent trademark symbol with spacing
+% \let\OldTexttrademark\texttrademark
+% \renewcommand{\texttrademark}{\OldTexttrademark\xspace}
+\def\tm{\texttrademark\xspace}
+
+% Set up code appropriate code listing appearance.
+\lstset{
+    basicstyle=\footnotesize,
+    % numbers=left,
+    % numberstyle=\tiny,
+    xleftmargin=1.2em,
+    columns=flexible,
+    linewidth=\columnwidth,
+    breaklines=true,
+    captionpos=b,
+    escapeinside=\!\!,
+    language=C,
+    literate={->}{$\rightarrow{}$}{1}
+             {=>}{$\Rightarrow{}$}{1},
+    moredelim=[is][\ttfamily\kern-0.1ex\textsubscript]{^}{\ },
+    morekeywords={}
+}
+
+% \begin{lstlisting}[gobble=8, caption="A sample code listing.", label=lst1]
+
+\begin{document}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%  Title
+\title{\LARGE\bfseries Exploring Optimisations for the Serial Jacobi Method}
+\date{\vspace{-1cm}} % No date
+\author{Anthony Wharton \\ aw15885@bristol.ac.uk}
+\maketitle
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%  Abstract
+\begin{abstract}
+After being given code which sequentially performs the Jacobi method, this report explores various possible optimisations and discusses the results of these.
+\end{abstract}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%  Getting Started, Choice of Compiler
+\section{Choice of Compiler}
+
+The original code\cite{hpc-cw1-code} contains a Makefile which compiles the program with the \texttt{CC} compiler. In order for greater experimentation breadth, the code will also be compiled through \texttt{GCC} and \texttt{ICC}.
+
+\subsection{Basic Compiler Flags}
+The simplest \textit{go-to} optimisation flags are the infamous \texttt{O0}, \texttt{O1}, \texttt{O2} \& \texttt{O3} flags. These are shorthand for a whole host of other flags\cite{gcc-docs-optimisations}, ranging from no optimisations in the case of \texttt{O0}, to most available optimisations with \texttt{O3}. Optimisations available include fusing loops/inlining code to reduce branch instructions and hoisting conditionals out of loops to improve CPU pipelining - to name a couple. The results of these \texttt{O}-flags are given in Table \ref{stockResults}.
+
+\vspace{-0.25cm}
+\begin{table}[h]
+\small
+\centering
+\begin{tabular}{l|c|c|c}
+       & \textbf{\texttt{CC}} & \textbf{\texttt{GCC}} & \textbf{\texttt{ICC}} \\
+\textbf{\texttt{O0}} & 10.895/10.878 & 10.894/10.878 & 11.15111.135 \\
+\textbf{\texttt{O1}} & 3.496/3.484   & 3.497/3.484   & 3.270/3.259  \\
+\textbf{\texttt{O2}} & 3.286/3.275   & 3.291/3.279   & 3.266/3.255  \\
+\textbf{\texttt{O3}} & 3.285/3.274   & 3.286/3.274   & 3.569/3.558
+\end{tabular}
+\caption{Total Run Time/Jacobi Solve time\newline for $1000\times1000$ (sec)}
+\label{stockResults}
+\end{table}\par
+\vspace{-0.35cm}
+
+It is clear to see that across different compilers, code runs with largely the same times. In addition, as expected, the higher \texttt{O}-level flags are generally quickest. Oddly though, \texttt{ICC} performs slower with \texttt{O3} than \texttt{O2}. This is due to the fact one of the optimisations enabled collapsing \texttt{IF} statements, which typically on aggregate is better for performance. However, due to the fact we have a very predictable conditional statement on line 61 of the original code\cite{hpc-cw1-code}, this optimisation is likely to be slower than the system's hardware branch-prediction used formerly. This can even add extra unecesary instructions, slowing performance. \par
+
+\subsection{Compiler Reports}
+After manually trying small optimisations, such as loop fusion and conditional hoisting, it was found that in most cases there was negligible difference ($\pm0.01$sec) between manual and compiled \texttt{O2/O3} optimisations. This is within the error bounds of run time, due to varying background system load. Compiler reports are vital in order to bring light to why these changes were not performing as well as hoped, as they inform \textit{what} the compiler is doing.
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%  Profiling
+\section{Profiling}
+Before delving deeper into optimisations, it is important to pay close attention as to what is causing slow downs in the program. Profiling will be done in \texttt{gprof} which requires extra flags at compilation (\texttt{-pg}, along with \texttt{-g} if line-specific profiling is required). Benchmarking the \texttt{gcc -O2} compiled code shows where the time is being consumed in a report, of which a snippet is included in Table \ref{profilingStock}. \par
+
+Line 59 and 62 are using around $70\%$ of the run time, and after inspecting the code\cite{hpc-cw1-code}, it is clear to see why. These lines are responsible for the majority of the `work', as they perform the (partial) dot product in the Jacobi method. The first optimisation was made in light of this fact. It should be noted that profiling motivated many of the future optimisations as well, \textit{even} if not explicitly mentioned in this report.
+
+\vspace{-0.35cm}
+\begin{table}[h]
+\small
+\centering
+\newcolumntype{A}{ >{\centering\arraybackslash} m{1.25cm} }
+\newcolumntype{B}{ >{\centering\arraybackslash} m{2cm} }
+\newcolumntype{C}{ >{\centering\arraybackslash} m{4.2cm} }
+\begin{tabular}{A|B|C}
+\textbf{\texttt{\% time}} & \textbf{\texttt{cumulative seconds}} & \textbf{\texttt{name}} \\
+\texttt{43.57}  &  \texttt{1.43}  &  \texttt{run (jacobi.c:62 ..)} \\
+\texttt{27.67}  &  \texttt{2.34}  &  \texttt{run (jacobi.c:59 ..)}
+\end{tabular}
+\caption{Extract from \texttt{gprof} profile report with default code compiled with \texttt{gcc} and \texttt{-O2}}
+\label{profilingStock}
+\end{table}\par
+\vspace{-0.42cm}
+
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%  Rearranging the Data
+\section{Optimisations}
+\vspace{-0.2cm}
+As seen in the previous section, the lines responsible for loop logic and dot product in the Jacobi method were using the majority of CPU time. The simplest way to go about fixing this, and other issues, is to take into consideration how the system is \textit{actually} working; specifically around how the CPU, Cache and Main Memory function.
+
+\subsection{`Cache Thrashing'}
+The Jacobi method deals with a 2 dimensional array for the coefficients of the linear system. Accesses to this two dimensional array are prevalent throughout the Jacobi method code, so care must be taken in how to store/access this data. An abstraction is made when using multi-dimensional data, due to memory being stored in one dimension. With 2 dimensional data, \textit{Row Major Order} is the notion of storing each row one after the other in memory, whereas \textit{Column Major Order} is the opposite notion where the columns dictate storage order. As a programmer it is important to note how the language being used stores multidimensional arrays, as this will drastically impact performance. For example C uses row major order, whereas Fortran uses column major order. Large performance impacts come from loading data to/from the cache. \par
+
+Retrieving data from main memory can take an order of magnitude more clock cycles to complete than lower level caches. As data is loaded from memory into the much faster cache on a line-by-line basis, helping the compiler load as much \textit{processable} data at once from memory, is hugely beneficial for the performance of the code. To elaborate, in the loops on line 56/59 in the original code\cite{hpc-cw1-code}, the data is being accessed in a column major manner. This will result in \textit{`cache thrashing'}; the event where different lines constantly need to be loaded into the cache, causing high proportions of cache invalidation. In this code, accessing columns require a new cache line every time, resulting in lots of cache load requests. With minor alterations to the loops, as well as the initialisation and convergence checking code, it is possible to greatly mitigate this by making loops execute in row major order. After recompiling and testing these changes, there is an approximate $5\times$ speedup in the best case (\texttt{icc -O3}), show in Table \ref{cacheThrash}.
+
+\begin{table}
+\small
+\centering
+\begin{tabular}{l|c|c}
+                     & \textbf{\texttt{GCC}} & \textbf{\texttt{ICC}} \\
+\textbf{1000$\times$1000 - \texttt{O2}} & 2.721/2.710     & 1.109/1.099     \\
+\textbf{1000$\times$1000 - \texttt{O3}} & 2.720/2.709     & 1.104/1.095     \\
+\textbf{2000$\times$2000 - \texttt{O2}} & 23.121/23.074   & 12.621/12.578   \\
+\textbf{2000$\times$2000 - \texttt{O3}} & 23.117/23.071   & 12.607/12.566   \\
+\textbf{4000$\times$4000 - \texttt{O2}} & 169.462/169.276 & 115.041/114.868 \\
+\textbf{4000$\times$4000 - \texttt{O3}} & 168.709/168.524 & 96.906/96.736
+\end{tabular}
+\caption{After Row/Column \textit{`cache-thrash'} Optimisation Total Run Time/Jacobi Solve Time (sec)}
+\label{cacheThrash}
+\end{table}\par
+
+\subsection{Vectorisation}
+\texttt{ICC} has automatic vectorisation in the \texttt{O2} and \texttt{O3} optimisation flags, which is what caused the first notable dramatic speed difference between compilers (Table \ref{cacheThrash}). Vectorisation is the process of converting single value instructions, into vector ones. Vector instructions use multiple sources of data - the \textit{``single instruction, multiple data"} paradigm, compared to the traditional \textit{``single instruction, single data"} one. To confirm this, the \texttt{ICC} compiler reports stated that the inner loop in the Jacobi method was fully vectorised. Recall this where the bulk of our processing time was spent! After reprofiling, the inner loop still shows this as taking around $70\%$ of the computational time as previously, however, now the instruction processes far more data at once, resulting in a significantly lower run time. \par
+
+There are a few other things to be noted here. The first of which is that \texttt{GCC 4.4.7} does support \textit{some} auto vectorisation, with extra flags in addition to those of \texttt{O3}. However, it yielded far less impressive results of around $1.9$ seconds. In order to get comparable results with \texttt{ICC}, the compiler would need extra aid such as refactoring code into an acceptable format for the auto vectorisation procedure, or trying other techniques such as memory alignment or even updating the compiler to a more recent version! Alternatively, auto vectorisation could be disabled and code could be rewritten using intrinsics - a low level abstraction similar to assembly, for specialised instructions at the hardware level. However, intrinsics are often not portable across platforms, and deemed out of scope for this report. Fortunately thanks to the luxary of compiler choice, there is no need these optimisations the report continues solely with \texttt{ICC} due to its superior auto vectorisation.
+
+\subsection{Further Memory Optimisations}
+The Intel\tm Sandy Bridge Xeon E5's in Blue Crystal Phase 3, which were used for this report, have large specialised vector registers. The code used  \texttt{double}s for computational values, which are 8 bytes - compared to the 4 bytes of \texttt{float}s. After changing all values to \texttt{float}s, further speed increases are observed, illustrated in Table \ref{floats}. This is due to the vector registers fitting twice as many values as before, which, paired with instruction set support facilitates \textit{even} more data to be computed at once. \par
+
+\begin{table}[b]
+\small
+\centering
+\begin{tabular}{l|c|c|c}
+    & \textbf{1000$\times$1000} & \textbf{2000$\times$2000} & \textbf{4000$\times$4000}   \\
+\textbf{\texttt{icc -O2}} & 0.602/0.592 & 4.212/4.173 & 46.844/46.689 \\
+\textbf{\texttt{icc -O3}} & 0.601/0.591 & 4.206/4.169 & 46.891/46.736 \\
+\end{tabular}
+\caption{After changing data type from \texttt{double} to \texttt{float} Total Run Time/Jacobi Solve Time (sec)}
+\label{floats}
+\end{table}\par
+
+The use of \texttt{\_mm\_malloc()} instead of \texttt{malloc()} for initialising memory locations was also tried in hope of aiding \texttt{ICC} and/or the system. This proprietary function from Intel\tm allows the alignment of memory to $n$ bit intervals. In this case $64$ bits is appropriate as the cache lines are $64$ bits wide in this system, and accommodating this could help decrease cache misses. Sadly this had no effect on runtime, due to \texttt{ICC} already applying this optimisation implicitly. \par
+
+\subsection{More Advanced Compiler Flags}
+As \texttt{ICC} was chosen for this project, experiments were run with a plethora of flags for the following improvements; non-precise \& faster division, forced instruction prefetching, faster math/floating point libraries/models, harshest loop unrolling/function inlining settings and using native assembly. These can be found in \texttt{ICCFLAG} variable in the submitted \texttt{Makefile}. This resulted in another large improvement, giving \texttt{icc -O3} about a 25\% improvement from the last optimisation to around 0.48 sec for $1000\times1000$. \par
+
+\subsection{Computing Multiple Rows}
+Throughout this project, two main areas of improvement have been targetted; the compiler and the main Jacobi loop. Due to the nature of the problem, even at this late stage when profiling the latest cod,e the majority of time is still spent with the dot operations. Thus, the last optimisation efforts will once again focus here. \par
+
+Cache loading was helped with our data structure row-column `swap', however now it is uncertain whether data in the cache \textit{actually remains} there throughout execution. In order to help ensure that this occurs, the code was changed to explicitly execute multiple lines at once. The motivation is to ensure the compiler, CPU and memory management modules realise that the memory is needed, and mitigate any cache invalidation. This inspired from tiled matrix computation for optimal cache usage, with a \textit{`manually unrolled'}, vectorisable loop. This can be found in the inline function \texttt{dotOperation} in the submitted code. This provides the final dramatic speedup, show in Table \ref{finalResults} \par
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%  Conclusion
+\vspace{-0.1cm}
+\section{Conclusion}
+With the exploration of optimisations wrapped up, a few things can be clearly concluded. Firstly, the process of using memory affects run time greatly, and optimisations to this help immensely. And finally, compilers are clever and will help as much as possible but often need prompts in the form or flags/pragmas/rearranged code for optimal results. Reports are especially useful for working \textit{with} the compiler, and can help debug why manual optimisations are not effective - or worse than unoptimised code! With reasonably simple changes, it is clear to see from the results that large performance improved can be gained!
+
+\vspace{-0.2cm}
+\begin{table}[h]
+\begin{adjustwidth}{-0.15cm}{}
+\small
+\centering
+\begin{tabular}{c|c|c|c}
+    & \textbf{1000$\times$1000} & \textbf{2000$\times$2000} & \textbf{4000$\times$4000}   \\
+\textbf{\texttt{orig.}} & 10.895/10.878 & 131.856/131.760 & 1031.428/1030.911 \\
+\textbf{\texttt{opt.}} & 0.365/0.355 & 2.632/2.593 & 38.655/38.500 \\
+\textbf{\texttt{\% inc.}} & $2985\%$ & $5001\%$ & $2668\%$ \\
+\end{tabular}
+\caption{Final Results from Optimisation Efforts, \newline Run Time/Solve Time (sec) \newline\textit{Results from original\cite{hpc-cw1-code} and submitted Makefile }}
+\label{finalResults}
+\end{adjustwidth}
+\end{table}\par
+\vspace{-0.22cm}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%  Bibliography
+\vspace{-0.3cm}
+\printbibliography[title={Bibliography}]
+\end{document}
+
+% \begin{figure}[h]
+%     \includegraphics[width=18em]{Figures/twoLayers.pdf}
+%     \centering
+%     \caption{Two Layers to be composed together.}
+%     \label{twolayers}
+% \end{figure}
