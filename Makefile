@@ -22,7 +22,7 @@ COMPILER = gcc
 PROFILING =
 GCC = gcc
 ICC = icc
-COMPILERS := gcc icc
+COMPILERS := icc
 OLEVELS := 2 3
 
 CFLAGS  = -std=c99 -Wall
