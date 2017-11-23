@@ -29,7 +29,7 @@ CFLAGS  = -std=c99 -Wall
 LDFLAGS = -lm
 PFFLAGS = -pg -g
 GCCFLAG = -ffast-math -ftree-vectorizer-verbose=2
-ICCFLAG = -march=native -ipo -no-prec-div -fp-model fast=2 -fp-speculation=fast -funroll-loops -qopt-prefetch=4 -mkl=sequential -daal=sequential -qopt-mem-layout-trans=3 -inline-level=2 -qopt-report=5
+ICCFLAG = -march=native -ipo -no-prec-div -fp-model fast=2 -fp-speculation=fast -funroll-loops -qopt-prefetch=4 -mkl=sequential -daal=sequential -qopt-mem-layout-trans=3 -inline-level=2 -qopt-report=5 -openmp
 OUTPUT  = ./bin/
 
 JACOBI-ITER = 20000
