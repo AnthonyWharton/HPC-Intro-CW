@@ -61,6 +61,7 @@ int run(float *A, float *b, float *x, float *xtmp)
 			dot0 = 0.0F; //dot1 = 0.0F; dot2 = 0.0F; dot3 = 0.0F;
 			// dot4 = 0.0F; dot5 = 0.0F; dot6 = 0.0F; dot7 = 0.0F;
 
+			#pragma omp simd reduction(+:dot0)
 			for (int col = 0; col < N; col++) {
 				dot0 += A[(row+0)*N + col] * x[col];
 				// dot1 += A[(row+1)*N + col] * x[col];
