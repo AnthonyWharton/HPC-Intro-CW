@@ -56,7 +56,7 @@ int run(float *A, float *b, float *x, float *xtmp)
 	do {
 		sqdiff = 0.0;
 		// Perfom Jacobi iteration
-		#pragma omp parallel for private(dot0) shared(A,b,x,xtmp) reduction(+:sqdiff)
+		#pragma omp parallel for schedule(static) private(dot0) shared(A,b,x,xtmp) reduction(+:sqdiff)
 		for (row = 0; row < N; row += 1/*UNROLL*/) {
 			dot0 = 0.0F; //dot1 = 0.0F; dot2 = 0.0F; dot3 = 0.0F;
 			// dot4 = 0.0F; dot5 = 0.0F; dot6 = 0.0F; dot7 = 0.0F;
@@ -125,6 +125,13 @@ int main(int argc, char *argv[])
 	printf(SEPARATOR);
 
 	double total_start = get_timestamp();
+
+	#pragma omp parallel for schedule(static)
+	for (int row = 0; row < N; row++) {
+		for (int col = 0; col < N; col++) {
+			A[row*N + col] = 0.0F;
+		}
+	}
 
 	// Initialize data
 	srand(SEED);
