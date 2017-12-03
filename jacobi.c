@@ -56,7 +56,7 @@ int run(float *A, float *b, float *x, float *xtmp)
 	do {
 		sqdiff = 0.0;
 		// Perfom Jacobi iteration
-		#pragma omp parallel for shared(A,b,x,xtmp) reduction(+:sqdiff)
+		#pragma omp parallel for private(dot0) shared(A,b,x,xtmp) reduction(+:sqdiff)
 		for (row = 0; row < N; row++/*row += UNROLL*/) {
 			dot0 = 0.0F; // dot1 = 0.0F; dot2 = 0.0F; dot3 = 0.0F;
 			// dot4 = 0.0F; dot5 = 0.0F; dot6 = 0.0F; dot7 = 0.0F;
