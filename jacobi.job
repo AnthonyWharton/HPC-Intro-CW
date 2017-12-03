@@ -11,14 +11,17 @@
 
 cd $PBS_O_WORKDIR
 
-echo -e "OMP OUTER LOOP"
+echo -e "OMP OUTER LOOP W/ REDUCTION"
 
 echo "> Running on host `hostname`"
 echo "> Time is `date`"
 echo "> Directory is `pwd`"
 echo "> PBS job ID is $PBS_JOBID"
 
-echo -e "\n\n\n"
+numnodes=`wc $PBS_NODEFILE | awk '{ print $1 }'`
+export OMP_NUM_THREADS=$numnodes
+
+echo -e "> OMP_NUM_THREADS = $OMP_NUM_THREADS\n\n\n "
 
 time make -j 16 bluecrystal-job
 echo -e "\n\n\n================================\n\n\n"

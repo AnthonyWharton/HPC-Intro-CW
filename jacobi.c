@@ -46,7 +46,7 @@ int run(float *A, float *b, float *x, float *xtmp)
 {
 	int itr;
 	int row;
-	float dot0, dot1, dot2, dot3, dot4, dot5, dot6, dot7;
+	float dot0; //, dot1, dot2, dot3, dot4, dot5, dot6, dot7;
 	float diff;
 	float sqdiff;
 	float *ptrtmp;
@@ -56,45 +56,48 @@ int run(float *A, float *b, float *x, float *xtmp)
 	do {
 		sqdiff = 0.0;
 		// Perfom Jacobi iteration
-		#pragma omp parallel for private(dot0,dot1,dot2,dot3,dot4,dot5,dot6,dot7) shared(A,b,x,xtmp)
-		for (row = 0; row < N; row += UNROLL) {
-			dot0 = 0.0F; dot1 = 0.0F; dot2 = 0.0F; dot3 = 0.0F;
-			dot4 = 0.0F; dot5 = 0.0F; dot6 = 0.0F; dot7 = 0.0F;
+		#pragma omp parallel for private(dot0) shared(A,b,x,xtmp) reduction(+:sqdiff)
+		for (row = 0; row < N; row += 1/*UNROLL*/) {
+			dot0 = 0.0F; //dot1 = 0.0F; dot2 = 0.0F; dot3 = 0.0F;
+			// dot4 = 0.0F; dot5 = 0.0F; dot6 = 0.0F; dot7 = 0.0F;
 
 			for (int col = 0; col < N; col++) {
 				dot0 += A[(row+0)*N + col] * x[col];
-				dot1 += A[(row+1)*N + col] * x[col];
-				dot2 += A[(row+2)*N + col] * x[col];
-				dot3 += A[(row+3)*N + col] * x[col];
-				dot4 += A[(row+4)*N + col] * x[col];
-				dot5 += A[(row+5)*N + col] * x[col];
-				dot6 += A[(row+6)*N + col] * x[col];
-				dot7 += A[(row+7)*N + col] * x[col];
+				// dot1 += A[(row+1)*N + col] * x[col];
+				// dot2 += A[(row+2)*N + col] * x[col];
+				// dot3 += A[(row+3)*N + col] * x[col];
+				// dot4 += A[(row+4)*N + col] * x[col];
+				// dot5 += A[(row+5)*N + col] * x[col];
+				// dot6 += A[(row+6)*N + col] * x[col];
+				// dot7 += A[(row+7)*N + col] * x[col];
 			}
 
 			dot0 -= A[(row+0)*N + (row+0)] * x[row+0];
-			dot1 -= A[(row+1)*N + (row+1)] * x[row+1];
-			dot2 -= A[(row+2)*N + (row+2)] * x[row+2];
-			dot3 -= A[(row+3)*N + (row+3)] * x[row+3];
-			dot4 -= A[(row+4)*N + (row+4)] * x[row+4];
-			dot5 -= A[(row+5)*N + (row+5)] * x[row+5];
-			dot6 -= A[(row+6)*N + (row+6)] * x[row+6];
-			dot7 -= A[(row+7)*N + (row+7)] * x[row+7];
+			// dot1 -= A[(row+1)*N + (row+1)] * x[row+1];
+			// dot2 -= A[(row+2)*N + (row+2)] * x[row+2];
+			// dot3 -= A[(row+3)*N + (row+3)] * x[row+3];
+			// dot4 -= A[(row+4)*N + (row+4)] * x[row+4];
+			// dot5 -= A[(row+5)*N + (row+5)] * x[row+5];
+			// dot6 -= A[(row+6)*N + (row+6)] * x[row+6];
+			// dot7 -= A[(row+7)*N + (row+7)] * x[row+7];
 
 			xtmp[row+0] = (b[row+0] - dot0) / A[(row+0)*N + row + 0];
-			xtmp[row+1] = (b[row+1] - dot1) / A[(row+1)*N + row + 1];
-			xtmp[row+2] = (b[row+2] - dot2) / A[(row+2)*N + row + 2];
-			xtmp[row+3] = (b[row+3] - dot3) / A[(row+3)*N + row + 3];
-			xtmp[row+4] = (b[row+4] - dot4) / A[(row+4)*N + row + 4];
-			xtmp[row+5] = (b[row+5] - dot5) / A[(row+5)*N + row + 5];
-			xtmp[row+6] = (b[row+6] - dot6) / A[(row+6)*N + row + 6];
-			xtmp[row+7] = (b[row+7] - dot7) / A[(row+7)*N + row + 7];
+			// xtmp[row+1] = (b[row+1] - dot1) / A[(row+1)*N + row + 1];
+			// xtmp[row+2] = (b[row+2] - dot2) / A[(row+2)*N + row + 2];
+			// xtmp[row+3] = (b[row+3] - dot3) / A[(row+3)*N + row + 3];
+			// xtmp[row+4] = (b[row+4] - dot4) / A[(row+4)*N + row + 4];
+			// xtmp[row+5] = (b[row+5] - dot5) / A[(row+5)*N + row + 5];
+			// xtmp[row+6] = (b[row+6] - dot6) / A[(row+6)*N + row + 6];
+			// xtmp[row+7] = (b[row+7] - dot7) / A[(row+7)*N + row + 7];
+			diff = x[row] - xtmp[row];
+			diff *= diff;
+			sqdiff += diff;
 		}
 
-		for (row = 0; row < N; row++) {
-			diff = x[row] - xtmp[row];
-			sqdiff += diff * diff;
-		}
+		// for (row = 0; row < N; row++) {
+		// 	diff = x[row] - xtmp[row];
+		// 	sqdiff += diff * diff;
+		// }
 
 		ptrtmp = x;
 		x      = xtmp;
