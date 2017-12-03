@@ -22,7 +22,7 @@ COMPILER = gcc
 PROFILING =
 GCC = gcc
 ICC = icc
-COMPILERS := icc
+COMPILERS := gcc icc
 OLEVELS := 2 3
 
 CFLAGS  = -std=c99 -Wall
@@ -33,7 +33,7 @@ ICCFLAG = -march=native -ipo -no-prec-div -fp-model fast=2 -fp-speculation=fast 
 OUTPUT  = ./bin/
 
 JACOBI-ITER = 20000
-JACOBI-NORD = 1000
+JACOBI-NORD = 4000
 
 ################################################################################
 #################################### MISC. #####################################
@@ -117,7 +117,7 @@ clean:
 	rm -rvf jacobi
 
 # Bluecrystal Job Target
-bluecrystal-job: clean profile-all run-all
+bluecrystal-job: clean run-all
 
 qsub:
 	qsub jacobi.job
