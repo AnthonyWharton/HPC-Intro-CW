@@ -56,6 +56,7 @@ int run(float *A, float *b, float *x, float *xtmp)
 	do {
 		sqdiff = 0.0;
 		// Perfom Jacobi iteration
+		#pragma omp parallel for private(dot0,dot1,dot2,dot3,dot4,dot5,dot6,dot7) shared(A,b,x,xtmp)
 		for (row = 0; row < N; row += UNROLL) {
 			dot0 = 0.0F; dot1 = 0.0F; dot2 = 0.0F; dot3 = 0.0F;
 			dot4 = 0.0F; dot5 = 0.0F; dot6 = 0.0F; dot7 = 0.0F;
@@ -88,22 +89,10 @@ int run(float *A, float *b, float *x, float *xtmp)
 			xtmp[row+5] = (b[row+5] - dot5) / A[(row+5)*N + row + 5];
 			xtmp[row+6] = (b[row+6] - dot6) / A[(row+6)*N + row + 6];
 			xtmp[row+7] = (b[row+7] - dot7) / A[(row+7)*N + row + 7];
+		}
 
-			diff = x[row+0] - xtmp[row+0];
-			sqdiff += diff * diff;
-			diff = x[row+1] - xtmp[row+1];
-			sqdiff += diff * diff;
-			diff = x[row+2] - xtmp[row+2];
-			sqdiff += diff * diff;
-			diff = x[row+3] - xtmp[row+3];
-			sqdiff += diff * diff;
-			diff = x[row+4] - xtmp[row+4];
-			sqdiff += diff * diff;
-			diff = x[row+5] - xtmp[row+5];
-			sqdiff += diff * diff;
-			diff = x[row+6] - xtmp[row+6];
-			sqdiff += diff * diff;
-			diff = x[row+7] - xtmp[row+7];
+		for (row = 0; row < N; row++) {
+			diff = x[row] - xtmp[row];
 			sqdiff += diff * diff;
 		}
 
