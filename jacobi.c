@@ -55,54 +55,44 @@ int run(float *A, float *b, float *x, float *xtmp)
 	do {
 		sqdiff = 0.0;
 		// Perfom Jacobi iteration
+		#pragma omp parallel for shared(A,b,x,xtmp)
 		for (row = 0; row < N; row += UNROLL) {
 			dot0 = 0.0F; dot1 = 0.0F; dot2 = 0.0F; dot3 = 0.0F;
 			dot4 = 0.0F; dot5 = 0.0F; dot6 = 0.0F; dot7 = 0.0F;
+			// #pragma omp parallel for shared(A,b,x)
 			for (int col = 0; col < N; col++) {
-				*dot0 += A[(row+0)*N + col] * x[col];
-				*dot1 += A[(row+1)*N + col] * x[col];
-				*dot2 += A[(row+2)*N + col] * x[col];
-				*dot3 += A[(row+3)*N + col] * x[col];
-				*dot4 += A[(row+4)*N + col] * x[col];
-				*dot5 += A[(row+5)*N + col] * x[col];
-				*dot6 += A[(row+6)*N + col] * x[col];
-				*dot7 += A[(row+7)*N + col] * x[col];
+				dot0 += A[(row+0)*N + col] * x[col];
+				dot1 += A[(row+1)*N + col] * x[col];
+				dot2 += A[(row+2)*N + col] * x[col];
+				dot3 += A[(row+3)*N + col] * x[col];
+				dot4 += A[(row+4)*N + col] * x[col];
+				dot5 += A[(row+5)*N + col] * x[col];
+				dot6 += A[(row+6)*N + col] * x[col];
+				dot7 += A[(row+7)*N + col] * x[col];
 			}
-		
-			*dot0 -= A[(row+0)*N + (row+0)] * x[row+0];
-			*dot1 -= A[(row+1)*N + (row+1)] * x[row+1];
-			*dot2 -= A[(row+2)*N + (row+2)] * x[row+2];
-			*dot3 -= A[(row+3)*N + (row+3)] * x[row+3];
-			*dot4 -= A[(row+4)*N + (row+4)] * x[row+4];
-			*dot5 -= A[(row+5)*N + (row+5)] * x[row+5];
-			*dot6 -= A[(row+6)*N + (row+6)] * x[row+6];
-			*dot7 -= A[(row+7)*N + (row+7)] * x[row+7];
-			
-			xtmp[row+0] = (b[row+0] - *dot0) / A[(row+0)*N + row + 0];
-			xtmp[row+1] = (b[row+1] - *dot1) / A[(row+1)*N + row + 1];
-			xtmp[row+2] = (b[row+2] - *dot2) / A[(row+2)*N + row + 2];
-			xtmp[row+3] = (b[row+3] - *dot3) / A[(row+3)*N + row + 3];
-			xtmp[row+4] = (b[row+4] - *dot4) / A[(row+4)*N + row + 4];
-			xtmp[row+5] = (b[row+5] - *dot5) / A[(row+5)*N + row + 5];
-			xtmp[row+6] = (b[row+6] - *dot6) / A[(row+6)*N + row + 6];
-			xtmp[row+7] = (b[row+7] - *dot7) / A[(row+7)*N + row + 7];
-		
-			*diff = x[row+0] - xtmp[row+0];
-			*sqdiff += *diff * *diff;
-			*diff = x[row+1] - xtmp[row+1];
-			*sqdiff += *diff * *diff;
-			*diff = x[row+2] - xtmp[row+2];
-			*sqdiff += *diff * *diff;
-			*diff = x[row+3] - xtmp[row+3];
-			*sqdiff += *diff * *diff;
-			*diff = x[row+4] - xtmp[row+4];
-			*sqdiff += *diff * *diff;
-			*diff = x[row+5] - xtmp[row+5];
-			*sqdiff += *diff * *diff;
-			*diff = x[row+6] - xtmp[row+6];
-			*sqdiff += *diff * *diff;
-			*diff = x[row+7] - xtmp[row+7];
-			*sqdiff += *diff * *diff;
+
+			dot0 -= A[(row+0)*N + (row+0)] * x[row+0];
+			dot1 -= A[(row+1)*N + (row+1)] * x[row+1];
+			dot2 -= A[(row+2)*N + (row+2)] * x[row+2];
+			dot3 -= A[(row+3)*N + (row+3)] * x[row+3];
+			dot4 -= A[(row+4)*N + (row+4)] * x[row+4];
+			dot5 -= A[(row+5)*N + (row+5)] * x[row+5];
+			dot6 -= A[(row+6)*N + (row+6)] * x[row+6];
+			dot7 -= A[(row+7)*N + (row+7)] * x[row+7];
+
+			xtmp[row+0] = (b[row+0] - dot0) / A[(row+0)*N + row + 0];
+			xtmp[row+1] = (b[row+1] - dot1) / A[(row+1)*N + row + 1];
+			xtmp[row+2] = (b[row+2] - dot2) / A[(row+2)*N + row + 2];
+			xtmp[row+3] = (b[row+3] - dot3) / A[(row+3)*N + row + 3];
+			xtmp[row+4] = (b[row+4] - dot4) / A[(row+4)*N + row + 4];
+			xtmp[row+5] = (b[row+5] - dot5) / A[(row+5)*N + row + 5];
+			xtmp[row+6] = (b[row+6] - dot6) / A[(row+6)*N + row + 6];
+			xtmp[row+7] = (b[row+7] - dot7) / A[(row+7)*N + row + 7];
+		}
+
+		for (row = 0; row < N; row += 1) {
+			diff = x[row+0] - xtmp[row+0];
+			sqdiff += diff * diff;
 		}
 
 		ptrtmp = x;
@@ -110,7 +100,7 @@ int run(float *A, float *b, float *x, float *xtmp)
 		xtmp   = ptrtmp;
 		itr++;
 	} while ((itr < MAX_ITERATIONS) && (sqrt(sqdiff) > CONVERGENCE_THRESHOLD));
-	
+
 	return itr;
 }
 
@@ -128,7 +118,7 @@ int main(int argc, char *argv[])
 	printf("Maximum iterations:     %d\n", MAX_ITERATIONS);
 	printf("Convergence threshold:  %lf\n", CONVERGENCE_THRESHOLD);
 	printf(SEPARATOR);
-	
+
 	double total_start = get_timestamp();
 
 	// Initialize data

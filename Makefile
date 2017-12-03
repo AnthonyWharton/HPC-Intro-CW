@@ -22,18 +22,20 @@ COMPILER = gcc
 PROFILING =
 GCC = gcc
 ICC = icc
-COMPILERS := icc
+COMPILERS := gcc icc
 OLEVELS := 2 3
 
 CFLAGS  = -std=c99 -Wall
 LDFLAGS = -lm
 PFFLAGS = -pg -g
-GCCFLAG = -ffast-math -ftree-vectorizer-verbose=2
-ICCFLAG = -march=native -ipo -no-prec-div -fp-model fast=2 -fp-speculation=fast -funroll-loops -qopt-prefetch=4 -mkl=sequential -daal=sequential -qopt-mem-layout-trans=3 -inline-level=2 -qopt-report=5 -openmp
+GCCFLAG = -fopenmp
+# GCCFLAG = -ffast-math -ftree-vectorizer-verbose=2
+ICCFLAG = -qopenmp
+# ICCFLAG = -march=native -ipo -no-prec-div -fp-model fast=2 -fp-speculation=fast -funroll-loops -qopt-prefetch=4 -mkl=sequential -daal=sequential -qopt-mem-layout-trans=3 -inline-level=2 -qopt-report=5 -qopenmp
 OUTPUT  = ./bin/
 
 JACOBI-ITER = 20000
-JACOBI-NORD = 1000
+JACOBI-NORD = 4000
 
 ################################################################################
 #################################### MISC. #####################################
@@ -64,8 +66,6 @@ ifeq ($(COMPILER), $(GCC))
 else
 ifeq ($(COMPILER), $(ICC))
 	$(COMPILER) -O$@ $(CFLAGS) $(PROFILING) $(ICCFLAG) -o $(OUTPUT)jacobi-$(COMPILER)-O$@ jacobi.c $(LDFLAGS)
-else
-  $(COMPILER) -O$@ $(CFLAGS) $(PROFILING)            -o $(OUTPUT)jacobi-$(COMPILER)-O$@ jacobi.c $(LDFLAGS)
 endif
 endif
 	@echo $(OUTPUT)jacobi-$(COMPILER)-O$@ >> $(OUTPUT)to-run
@@ -117,8 +117,9 @@ clean:
 	rm -rvf jacobi
 
 # Bluecrystal Job Target
-bluecrystal-job: clean profile-all run-all
+bluecrystal-job: clean run-all
 
+# Adds job to queue
 qsub:
 	qsub jacobi.job
 
