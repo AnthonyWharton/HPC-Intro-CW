@@ -11,7 +11,7 @@
 
 cd $PBS_O_WORKDIR
 
-echo -e "MEMORY ALIGNMENT"
+echo -e "MEMORY ALIGNMENT V2"
 
 echo "> Running on host `hostname`"
 echo "> Time is `date`"

@@ -126,14 +126,17 @@ int main(int argc, char *argv[])
 
 	double total_start = get_timestamp();
 
+	// Initialize memory
 	#pragma omp parallel for schedule(static)
 	for (int row = 0; row < N; row++) {
 		for (int col = 0; col < N; col++) {
 			A[row*N + col] = 0.0F;
 		}
+		b[row] = 0.0F;
+		x[row] = 0.0F;
 	}
 
-	// Initialize data
+	// Initialize random data
 	srand(SEED);
 	for (int row = 0; row < N; row++) {
 		float rowsum = 0.0;
@@ -144,7 +147,6 @@ int main(int argc, char *argv[])
 		}
 		A[row*N + row] += rowsum; // Add the row sum to the diagonal
 		b[row] = rand()/(float)RAND_MAX;
-		x[row] = 0.0;
 	}
 
 	// Run Jacobi solver
