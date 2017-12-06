@@ -6,12 +6,12 @@
 #PBS -joe
 #PBS -q teaching
 #PBS -l nodes=1:ppn=16
-#PBS -l walltime=00:20:00
+#PBS -l walltime=00:30:00
 #PBS -l hostlist=\"node31-0[30-39]^\"
 
 cd $PBS_O_WORKDIR
 
-echo -e "MEMORY ALIGNMENT V2"
+echo -e "CPU AFFINITY"
 
 echo "> Running on host `hostname`"
 echo "> Time is `date`"
@@ -20,8 +20,12 @@ echo "> PBS job ID is $PBS_JOBID"
 
 numnodes=`wc $PBS_NODEFILE | awk '{ print $1 }'`
 export OMP_NUM_THREADS=$numnodes
+# export OMP_DISPLAY_ENV=true
+export OMP_PROC_BIND=CLOSE
+export KMP_AFFINITY=compact
 
 echo -e "> OMP_NUM_THREADS = $OMP_NUM_THREADS\n\n\n "
+
 
 time make -j 16 bluecrystal-job
 echo -e "\n\n\n================================\n\n\n"
