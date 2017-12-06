@@ -6,7 +6,7 @@
 #PBS -joe
 #PBS -q teaching
 #PBS -l nodes=1:ppn=16
-#PBS -l walltime=00:30:00
+#PBS -l walltime=00:45:00
 #PBS -l hostlist=\"node31-0[30-39]^\"
 
 cd $PBS_O_WORKDIR
@@ -19,30 +19,36 @@ echo "> Directory is `pwd`"
 echo "> PBS job ID is $PBS_JOBID"
 
 numnodes=`wc $PBS_NODEFILE | awk '{ print $1 }'`
-export OMP_NUM_THREADS=$numnodes
+#export OMP_NUM_THREADS=$numnodes
 # export OMP_DISPLAY_ENV=true
 export OMP_PROC_BIND=CLOSE
 export KMP_AFFINITY=compact
 
-echo -e "> OMP_NUM_THREADS = $OMP_NUM_THREADS\n\n\n "
+function run {
+        echo -e "> OMP_NUM_THREADS = $OMP_NUM_THREADS\n\n\n "
+        time make -j 16 bluecrystal-job
+        echo -e "\n\n\n================================\n\n\n"
+        time make -j 16 bluecrystal-job
+        echo -e "\n\n\n================================\n\n\n"
+        time make -j 16 bluecrystal-job
+        echo -e "\n\n\n================================\n\n\n"
+        time make -j 16 bluecrystal-job
+        echo -e "\n\n\n================================\n\n\n"
+        time make -j 16 bluecrystal-job
+        echo -e "\n\n\n================================\n\n\n"
+        time make -j 16 bluecrystal-job
+        echo -e "\n\n\n================================\n\n\n"
+        time make -j 16 bluecrystal-job
+        echo -e "\n\n\n================================\n\n\n"
+        time make -j 16 bluecrystal-job
+        echo -e "\n\n\n================================\n\n\n"
+        time make -j 16 bluecrystal-job
+        echo -e "\n\n\n================================\n\n\n"
+        time make -j 16 bluecrystal-job
+}
 
-
-time make -j 16 bluecrystal-job
-echo -e "\n\n\n================================\n\n\n"
-time make -j 16 bluecrystal-job
-echo -e "\n\n\n================================\n\n\n"
-time make -j 16 bluecrystal-job
-echo -e "\n\n\n================================\n\n\n"
-time make -j 16 bluecrystal-job
-echo -e "\n\n\n================================\n\n\n"
-time make -j 16 bluecrystal-job
-echo -e "\n\n\n================================\n\n\n"
-time make -j 16 bluecrystal-job
-echo -e "\n\n\n================================\n\n\n"
-time make -j 16 bluecrystal-job
-echo -e "\n\n\n================================\n\n\n"
-time make -j 16 bluecrystal-job
-echo -e "\n\n\n================================\n\n\n"
-time make -j 16 bluecrystal-job
-echo -e "\n\n\n================================\n\n\n"
-time make -j 16 bluecrystal-job
+for i in `seq 2 3`;
+do
+        export OMP_NUM_THREADS=$i
+        run
+done
