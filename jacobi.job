@@ -47,7 +47,7 @@ function run {
         time make -j 16 bluecrystal-job
 }
 
-for i in `seq 2 3`;
+for i in `seq 16 16`;
 do
         export OMP_NUM_THREADS=$i
         run
