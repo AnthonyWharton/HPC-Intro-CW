@@ -6,12 +6,19 @@
 #PBS -joe
 #PBS -q teaching
 #PBS -l nodes=1:ppn=16
-#PBS -l walltime=00:45:00
+#PBS -l walltime=00:10:00
 #PBS -l hostlist=\"node31-0[30-39]^\"
 
-cd $PBS_O_WORKDIR
+# Change the following two variables to run number of threads from MIN to MAX
+# inclusively.
+NUM_THREADS_MIN=16
+NUM_THREADS_MAX=16
 
-echo -e "CPU AFFINITY"
+# Change the following variable to change the number of times to repeat the
+# run of jacobi with threads specified previously
+NUM_REPEAT=1
+
+cd $PBS_O_WORKDIR
 
 echo "> Running on host `hostname`"
 echo "> Time is `date`"
@@ -19,36 +26,22 @@ echo "> Directory is `pwd`"
 echo "> PBS job ID is $PBS_JOBID"
 
 numnodes=`wc $PBS_NODEFILE | awk '{ print $1 }'`
-#export OMP_NUM_THREADS=$numnodes
 # export OMP_DISPLAY_ENV=true
 export OMP_PROC_BIND=CLOSE
 export KMP_AFFINITY=compact
 
-function run {
+function run_n_times {
+
         echo -e "> OMP_NUM_THREADS = $OMP_NUM_THREADS\n\n\n "
-        time make -j 16 bluecrystal-job
-        echo -e "\n\n\n================================\n\n\n"
-        time make -j 16 bluecrystal-job
-        echo -e "\n\n\n================================\n\n\n"
-        time make -j 16 bluecrystal-job
-        echo -e "\n\n\n================================\n\n\n"
-        time make -j 16 bluecrystal-job
-        echo -e "\n\n\n================================\n\n\n"
-        time make -j 16 bluecrystal-job
-        echo -e "\n\n\n================================\n\n\n"
-        time make -j 16 bluecrystal-job
-        echo -e "\n\n\n================================\n\n\n"
-        time make -j 16 bluecrystal-job
-        echo -e "\n\n\n================================\n\n\n"
-        time make -j 16 bluecrystal-job
-        echo -e "\n\n\n================================\n\n\n"
-        time make -j 16 bluecrystal-job
-        echo -e "\n\n\n================================\n\n\n"
-        time make -j 16 bluecrystal-job
+        for i in `seq 1 $1`;
+        do
+                time make -j 16 bluecrystal-job
+                echo -e "\n\n\n================================\n\n\n"
+        done
 }
 
-for i in `seq 16 16`;
+for i in `seq $NUM_THREADS_MIN $NUM_THREADS_MAX`;
 do
         export OMP_NUM_THREADS=$i
-        run
+        run_n_times $NUM_REPEAT
 done

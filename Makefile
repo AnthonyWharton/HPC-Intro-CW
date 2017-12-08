@@ -134,7 +134,10 @@ bcsubmit:
 
 # Hardcoded compile flags for best performing Jacobi compilation
 compile-best: clean
-	icc -O3 -std=c99 -Wall -march=native -ipo -no-prec-div -fp-model fast=2 -fp-speculation=fast -funroll-loops -qopt-prefetch=4 -mkl=sequential -daal=sequential -qopt-mem-layout-trans=3 -inline-level=2 -o jacobi jacobi.c -lm
+	icc -O3 -std=c99 -Wall -qopenmp -march=native -ipo -no-prec-div -fp-model fast=2 -fp-speculation=fast -funroll-loops -qopt-prefetch=4 -mkl=sequential -daal=sequential -qopt-mem-layout-trans=3 -inline-level=2 -o jacobi jacobi.c -lm
+
+# Backwards compatibility jacobi target
+jacobi: compile-best
 
 # Jacobi arguments are still based off the defined variables.
 run-best: compile-best
