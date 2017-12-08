@@ -63,12 +63,12 @@ int run(float *A, float *b, float *x, float *xtmp)
 
 			#pragma omp simd reduction(+:dot)
 			for (int col = 0; col < N; col++) {
-				float val = A[(row+0)*N + col] * x[col];
+				float val = A[row*N + col] * x[col];
 				dot += val;
 			}
 
 			dot -= A[row*N + row] * x[row];
-			xtmp[row] = (b[row] - dot) / A[(row)*N + row + 0];
+			xtmp[row] = (b[row] - dot) / A[(row)*N + row];
 
 			diff = x[row] - xtmp[row];
 			diff *= diff;

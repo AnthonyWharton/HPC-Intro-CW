@@ -6,7 +6,7 @@
 #PBS -joe
 #PBS -q teaching
 #PBS -l nodes=1:ppn=16
-#PBS -l walltime=00:10:00
+#PBS -l walltime=00:15:00
 #PBS -l hostlist=\"node31-0[30-39]^\"
 
 # Change the following two variables to run number of threads from MIN to MAX
@@ -16,7 +16,7 @@ NUM_THREADS_MAX=16
 
 # Change the following variable to change the number of times to repeat the
 # run of jacobi with threads specified previously
-NUM_REPEAT=1
+NUM_REPEAT=10
 
 cd $PBS_O_WORKDIR
 
