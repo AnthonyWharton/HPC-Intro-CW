@@ -216,27 +216,35 @@ Having now looked at various aspects around parallelising the implementation, it
 
 This shows a few points of interest. Firstly, it is immediately apparent how quickly performance increases when there is under 8 threads. It follows an approximately exponential curve - something one would expect to see with the compact affinity. Then, the next small bump in speedup is when introducing the second socket and passing to more than 8 threads. However interestingly at this point the rewards reaped are much lower. Switching to a balanced affinity may have aided this, albeit possibly not that much. And then finally, when the number of threads surpasses the number of physical cores, the system relies on the kernel's time scheduler. This results in slightly slower, wavering, but roughly similar times even with scaling threads. \par
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{More Nodes; OpenMPI}
+After exploring the possibilities with a single node performance one may ask, what now? Adding more nodes seems to be the obvious option. OpenMPI is a message passing library that allows for scaling parallel programs to multiple nodes within a high performance computing environment. An attempt was made at running OpenMPI within the implementation but ultimately ended in failure due to a very small bug that was sadly not fixed in time. This section serves as the motivation and planning regarding this attempt. \par
+
+The main area of work that is distributed amongst the threads is the main for loop, so this is the target for distribution across multiple nodes. After initialising OpenMPI, each spawned node initialises the random data off of the fixed seed. Then they go straight into processing the main loop. The only cross node dependency is the array \texttt{X}, which stores the working and eventually final solutions to the Jacobi method. The motivation was to simply have all workers calculate their `chunk' of rows, synchronise this back to the master thread, and then have the fully updated array returned to them. The squared difference measure for measuring convergence was also passed around in it's partial form, in order to save extra processing. \par
+
+In addition to the message passing to synchronise nodes from iteration to iteration, the plan was to keep the OpenMP implementation in place. This means that each node would calculate on it's section of the array in parallel, and then these would in turn synchronise back with OpenMPI. Sadly this did not come to fruition due to a small bug somewhere, presumably a finer detail overlooked within the maths. The message passing worked, the synchronisation appeared to work (perhaps some edge case of data was not being passed correctly, but the bulk was), and yet the figures for measuring convergence were wrong. This resulted in incorrect halting of execution and thus incorrect answers. Given another day to come back to this, the solution would likely be simple, but alas! \par
+
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Conclusion}
 In conclusion, this report ventured upon new ground from the original with the advent of parallelism. However, it is clear to see that similar areas cause the most dramatic decrease in solve times; management of memory is still crucial in order to maintain the best performance from one's code! The main critical addition to this is also thread location, which can almost be thought of in a similar fashion to memory. Locality is key, and ensuring efficient movement of memory, or communication between cores is vital! \par
 
-The final best times for this report are listed below: \par
+After re-enabling the compiler flags from the serial assignment which added; floating point arithmetic optimisations; prefetch optimisations, intel's math-kernel library and other small tweaks, the final best times were achieved. These were approximately 0.2-0.3 seconds faster than the last fastest times in the CPU Affinity section (Figure \ref{fig-6-affin}). The final best times for this report are listed below: \par
 
-\vspace{-0.2cm}
 \begin{table}[h]
 \begin{adjustwidth}{-0.15cm}{}
 \small
 \centering
-\begin{tabular}{c|c}
-\textbf{500$\times$500}   &  \\
-\textbf{1000$\times$1000} &  \\
-\textbf{2000$\times$2000} &  \\
-\textbf{4000$\times$4000} &  \\
-\textbf{8000$\times$8000} &
+\begin{tabular}{c|c|c}
+\textbf{Size} & \textbf{Solve Time (sec)} & \textbf{Compiler} \\ \hline
+\textbf{500$\times$500}   & 0.185531 & \texttt{gcc -o2} \\
+\textbf{1000$\times$1000} & 0.100523 & \texttt{icc -o3} \\
+\textbf{2000$\times$2000} & 0.288259 & \texttt{icc -o3} \\
+\textbf{4000$\times$4000} & 6.961660 & \texttt{icc -o3} \\
+\textbf{8000$\times$8000} & 53.748440 & \texttt{icc -o3}
 
 \end{tabular}
-\caption{}
+\caption{The final best times recorded from 10 runs of the implementation. Note that $500\times500$ performed poorly on \texttt{icc} and \texttt{gcc -o2} with fast floating point maths was used.}
 \label{finalResults}
 \end{adjustwidth}
 \end{table}\par

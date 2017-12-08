@@ -46,7 +46,7 @@ JACOBI-NORD = 4000
 .NOTPARALLEL: run-all profile-all
 
 # Set Default Target Location
-.DEFAULT_GOAL := compile-best
+.DEFAULT_GOAL := mpi-job
 
 # Creates the output location
 $(OUTPUT):
