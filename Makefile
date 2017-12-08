@@ -32,6 +32,7 @@ GCCFLAG = -fopenmp -ffast-math -ftree-vectorizer-verbose=2
 ICCFLAG = -qopenmp -march=native -ipo -no-prec-div -fp-model fast=2 -fp-speculation=fast -funroll-loops -qopt-prefetch=4 -mkl=parallel -daal=cluster -qopt-mem-layout-trans=3 -inline-level=2 -qopt-report=5
 # GCCFLAG = -ffast-math -ftree-vectorizer-verbose=2
 # ICCFLAG = -march=native -ipo -no-prec-div -fp-model fast=2 -fp-speculation=fast -funroll-loops -qopt-prefetch=4 -mkl=sequential -daal=sequential -qopt-mem-layout-trans=3 -inline-level=2 -qopt-report=5
+MPIFLAGS = -fopenmp -O3
 OUTPUT  = ./bin/
 
 JACOBI-ITER = 20000
@@ -92,6 +93,12 @@ _compile_profiling: $(COMPILERS)
 # in $(PFFLAGS)
 compile-all-with-profiling:
 	@$(MAKE) _compile_profiling  --no-print-directory PROFILING="$(PFFLAGS)"
+
+################################################################################
+##################################  MPI  #######################################
+################################################################################
+mpi-job: clean $(OUTPUT) jacobi.c
+	mpicc $(CFLAGS) $(MPIFLAGS) -o $(OUTPUT)jacobi jacobi.c
 
 ################################################################################
 ######################### GENERIC HIGH LEVEL TARGETS ###########################

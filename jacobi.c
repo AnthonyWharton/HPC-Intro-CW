@@ -25,6 +25,7 @@
 #include <sys/time.h>
 #include <immintrin.h>
 #include <omp.h>
+#include "mpi.h"
 
 static int N;
 static int MAX_ITERATIONS;
@@ -43,7 +44,7 @@ void parse_arguments(int argc, char *argv[]);
 
 // Run the Jacobi solver
 // Returns the number of iterations performed
-int run(float *A, float *b, float *x, float *xtmp)
+int run(float *A, float *b, float *x, float *xtmp, int rank, int size)
 {
 	int itr;
 	int row;
@@ -52,13 +53,15 @@ int run(float *A, float *b, float *x, float *xtmp)
 	float sqdiff;
 	float *ptrtmp;
 
+	// Work out local N
+
 	// Loop until converged or maximum iterations reached
 	itr = 0;
 	do {
 		sqdiff = 0.0;
 		// Perfom Jacobi iteration
 		#pragma omp parallel for schedule(static) private(dot) shared(A,b,x,xtmp) reduction(+:sqdiff)
-		for (row = 0; row < N; row += 1/*UNROLL*/) {
+		for (row = 0; row < N; row += 1) {
 			dot = 0.0F;
 
 			#pragma omp simd reduction(+:dot)
@@ -84,22 +87,52 @@ int run(float *A, float *b, float *x, float *xtmp)
 	return itr;
 }
 
+void sendInitialData(float *A, float *b, float *x, int size)
+{
+	for (int dest = 1; dest < size; dest++) {
+		MPI_Send(A, N*N, MPI_FLOAT, dest, 0, MPI_COMM_WORLD);
+		MPI_Send(b, N,   MPI_FLOAT, dest, 0, MPI_COMM_WORLD);
+		MPI_Send(x, N,   MPI_FLOAT, dest, 0, MPI_COMM_WORLD);
+	}
+}
+
+void recvInitialData(float *A, float *b, float *x)
+{
+	MPI_Recv(A, N*N, MPI_FLOAT, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+	MPI_Recv(b, N,   MPI_FLOAT, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+	MPI_Recv(x, N,   MPI_FLOAT, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+}
+
 int main(int argc, char *argv[])
 {
 	parse_arguments(argc, argv);
+
+	// Get into MPI land
+
+	MPI_Init(&argc, &argv);
+
+	// Check if that worked
+	int flag;
+	MPI_Initialized(&flag);
+	if (!flag) {
+		MPI_Abort(MPI_COMM_WORLD,EXIT_FAILURE);
+	}
+
+	// We're here, it worked, lets find out what's going on
+	char *hostname = malloc(MPI_MAX_PROCESSOR_NAME); // Process name
+	int namelen = 0; // name length
+	int size = 0;    // size of group
+	int rank = 0;    // which one am I?
+	MPI_Get_processor_name(hostname, &namelen);
+	MPI_Comm_size(MPI_COMM_WORLD, &size);
+	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+
+	printf("Process %d of %d started, called: '%s'\n", rank, size, hostname);
 
 	float *A    = _mm_malloc(N*N*sizeof(float), 64);
 	float *b    = _mm_malloc(N*sizeof(float), 64);
 	float *x    = _mm_malloc(N*sizeof(float), 64);
 	float *xtmp = _mm_malloc(N*sizeof(float), 64);
-
-	printf(SEPARATOR);
-	printf("Matrix size:            %dx%d\n", N, N);
-	printf("Maximum iterations:     %d\n", MAX_ITERATIONS);
-	printf("Convergence threshold:  %lf\n", CONVERGENCE_THRESHOLD);
-	printf(SEPARATOR);
-
-	double total_start = get_timestamp();
 
 	// Initialize memory
 	#pragma omp parallel for schedule(static)
@@ -111,35 +144,53 @@ int main(int argc, char *argv[])
 		x[row] = 0.0F;
 	}
 
-	// Initialize random data
-	srand(SEED);
-	for (int row = 0; row < N; row++) {
-		float rowsum = 0.0;
-		for (int col = 0; col < N; col++) {
-			float value = rand()/(float)RAND_MAX;
-			A[row*N + col] = value;
-			rowsum += value;
+	double total_start = 0.0F;
+	if (rank == 0) {
+		printf(SEPARATOR);
+		printf("Matrix size:            %dx%d\n", N, N);
+		printf("Maximum iterations:     %d\n", MAX_ITERATIONS);
+		printf("Convergence threshold:  %lf\n", CONVERGENCE_THRESHOLD);
+		printf(SEPARATOR);
+
+		double total_start = get_timestamp();
+
+		// Initialize random data
+		srand(SEED);
+		for (int row = 0; row < N; row++) {
+			float rowsum = 0.0;
+			for (int col = 0; col < N; col++) {
+				float value = rand()/(float)RAND_MAX;
+				A[row*N + col] = value;
+				rowsum += value;
+			}
+			A[row*N + row] += rowsum; // Add the row sum to the diagonal
+			b[row] = rand()/(float)RAND_MAX;
 		}
-		A[row*N + row] += rowsum; // Add the row sum to the diagonal
-		b[row] = rand()/(float)RAND_MAX;
+		sendInitialData(A, b, x, size);
+	} else { // Rank != 0
+		recvInitialData(A, b, x);
 	}
+
+	// Ship out initialisation data
 
 	// Run Jacobi solver
 	double solve_start = get_timestamp();
-	int itr = run(A, b, x, xtmp);
+	int itr = run(A, b, x, xtmp, rank, size);
 	double solve_end = get_timestamp();
 
-	// Check error of final solution
 	float err = 0.0;
-	for (int row = 0; row < N; row++) {
-		float tmp = 0.0;
-		for (int col = 0; col < N; col++) {
-			tmp += A[row*N + col] * x[col];
+	if (rank == 0) {
+		// Check error of final solution
+		for (int row = 0; row < N; row++) {
+			float tmp = 0.0;
+			for (int col = 0; col < N; col++) {
+				tmp += A[row*N + col] * x[col];
+			}
+			tmp = b[row] - tmp;
+			err += tmp*tmp;
 		}
-		tmp = b[row] - tmp;
-		err += tmp*tmp;
+		err = sqrt(err);
 	}
-	err = sqrt(err);
 
 	double total_end = get_timestamp();
 
@@ -157,6 +208,8 @@ int main(int argc, char *argv[])
 	_mm_free(x);
 	_mm_free(xtmp);
 
+	// Finish with MPI
+	MPI_Finalize();
 	return 0;
 }
 
