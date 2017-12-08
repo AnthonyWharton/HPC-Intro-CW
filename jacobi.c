@@ -42,6 +42,30 @@ double get_timestamp();
 // Parse command line arguments to set solver parameters
 void parse_arguments(int argc, char *argv[]);
 
+void chunker(int *chunk, int *chunkSize, int rank, int size) {
+	// Work out how many rows this thread should calculate
+	// Share any unequally divided threads amongst last workers
+	(*chunkSize) = N / size;
+	(*chunk) = (*chunkSize) * rank ;
+	int mod = N % size;
+	if (mod != 0) {
+		if (rank >= size - mod) {
+			(*chunkSize)++;
+			(*chunk) += rank - (size - mod);
+		}
+	}
+	(*chunkSize)--;
+	// printf("(%d) CHUNK: %d -> %d (%d)", rank, chunk, chunk+chunkSize, chunkSize);
+}
+
+// void masterInLoop(float *x, float *sqdiff, int *chunks, int *chunkSizes, int size, int itr) {
+//
+// }
+//
+// void workerInLoop(float *x, float *sqdiff, int chunk, int chunkSize, int itr) {
+//
+// }
+
 // Run the Jacobi solver
 // Returns the number of iterations performed
 int run(float *A, float *b, float *x, float *xtmp, int rank, int size)
@@ -52,55 +76,92 @@ int run(float *A, float *b, float *x, float *xtmp, int rank, int size)
 	float diff;
 	float sqdiff;
 	float *ptrtmp;
+	int chunk;
+	int chunkSize;
+	int *chunks;     // Only used by master
+	int *chunkSizes; // Only used by master
 
-	// Work out local N
+	if (rank == 0) {
+		chunks     = _mm_malloc((size-1)*sizeof(int), 64);
+		chunkSizes = _mm_malloc((size-1)*sizeof(int), 64);
+
+		for (int i = 0; i < size ; i++) {
+			chunker(&chunks[i], &chunkSizes[i], i, size);
+			printf("(%d) CHUNK: %d -> %d (%d)\n", i, chunks[i], chunks[i]+chunkSizes[i], chunkSizes[i]);
+		}
+	}
+
+	chunker(&chunk, &chunkSize, rank, size);
 
 	// Loop until converged or maximum iterations reached
 	itr = 0;
 	do {
-		sqdiff = 0.0;
+		sqdiff = 0.0F;
 		// Perfom Jacobi iteration
 		#pragma omp parallel for schedule(static) private(dot) shared(A,b,x,xtmp) reduction(+:sqdiff)
-		for (row = 0; row < N; row += 1) {
+		for (row = chunk; row < (chunk+chunkSize); row += 1) {
 			dot = 0.0F;
 
 			#pragma omp simd reduction(+:dot)
 			for (int col = 0; col < N; col++) {
-				float val = A[(row+0)*N + col] * x[col];
+				float val = A[row*N + col] * x[col];
 				dot += val;
 			}
 
 			dot -= A[row*N + row] * x[row];
-			xtmp[row] = (b[row] - dot) / A[(row)*N + row + 0];
-
+			xtmp[row] = (b[row] - dot) / A[(row)*N + row];
 			diff = x[row] - xtmp[row];
 			diff *= diff;
 			sqdiff += diff;
+		}
+
+		if (rank == 0) {
+			// float sqdiffacc = 0.0F;
+			for (int remote = 1; remote < size; remote++) {
+				// printf("%f, ", x[chunks[remote]]);
+				MPI_Recv(&xtmp[chunks[remote]], chunkSizes[remote], MPI_FLOAT, remote, itr, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+				// MPI_Recv(&sqdiffacc,            1,                  MPI_FLOAT, remote, itr, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+				// printf("%f, ", sqdiff);
+				// sqdiff += sqdiffacc;
+				// printf("%f, %f\n", sqdiffacc, sqdiff);
+			}
+
+			sqdiff = 0;
+			for (int i = 0; i < N; i++) {
+				diff = x[row] - xtmp[row];
+				sqdiff += diff * diff;
+			}
+
+			for (int remote = 1; remote < size; remote++) {
+				// printf("%d) R%d, %f %f %f %f %f %f %f %f\n", itr, rank, x[0], x[1], x[498], x[499], x[500], x[501], x[998], x[999]);
+				MPI_Send(&xtmp[0], N, MPI_FLOAT, remote, itr, MPI_COMM_WORLD);
+				MPI_Send(&sqdiff,  1, MPI_FLOAT, remote, itr, MPI_COMM_WORLD);
+			}
+		} else {
+			// Send back portion of data worked on and sqdiff
+			// printf("W %f %f %f %f %f %f\n", x[chunk], x[chunk+1], x[chunk+2], x[chunk+3], x[chunk+4], x[chunk+5]);
+			MPI_Send(&xtmp[chunk], chunkSize, MPI_FLOAT, 0, itr, MPI_COMM_WORLD);
+			// MPI_Send(&sqdiff,      1,         MPI_FLOAT, 0, itr, MPI_COMM_WORLD);
+
+			// Await updates
+			MPI_Recv(&xtmp[0], N, MPI_FLOAT, 0, itr, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+			// printf("%d) R%d, %f %f %f %f %f %f %f %f\n", itr, rank, x[0], x[1], x[498], x[499], x[500], x[501], x[998], x[999]);
+			MPI_Recv(&sqdiff,  1, MPI_FLOAT, 0, itr, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 		}
 
 		ptrtmp = x;
 		x      = xtmp;
 		xtmp   = ptrtmp;
 		itr++;
+
 	} while ((itr < MAX_ITERATIONS) && (sqrt(sqdiff) > CONVERGENCE_THRESHOLD));
 
-	return itr;
-}
-
-void sendInitialData(float *A, float *b, float *x, int size)
-{
-	for (int dest = 1; dest < size; dest++) {
-		MPI_Send(A, N*N, MPI_FLOAT, dest, 0, MPI_COMM_WORLD);
-		MPI_Send(b, N,   MPI_FLOAT, dest, 0, MPI_COMM_WORLD);
-		MPI_Send(x, N,   MPI_FLOAT, dest, 0, MPI_COMM_WORLD);
+	if (rank == 0) {
+		_mm_free(chunks);
+		_mm_free(chunkSizes);
 	}
-}
 
-void recvInitialData(float *A, float *b, float *x)
-{
-	MPI_Recv(A, N*N, MPI_FLOAT, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-	MPI_Recv(b, N,   MPI_FLOAT, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-	MPI_Recv(x, N,   MPI_FLOAT, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+	return itr;
 }
 
 int main(int argc, char *argv[])
@@ -108,13 +169,13 @@ int main(int argc, char *argv[])
 	parse_arguments(argc, argv);
 
 	// Get into MPI land
-
 	MPI_Init(&argc, &argv);
 
 	// Check if that worked
 	int flag;
 	MPI_Initialized(&flag);
 	if (!flag) {
+		printf("ABORTED");
 		MPI_Abort(MPI_COMM_WORLD,EXIT_FAILURE);
 	}
 
@@ -140,38 +201,33 @@ int main(int argc, char *argv[])
 		for (int col = 0; col < N; col++) {
 			A[row*N + col] = 0.0F;
 		}
-		b[row] = 0.0F;
-		x[row] = 0.0F;
+		b[row]    = 0.0F;
+		x[row]    = 0.0F;
+		xtmp[row] = 0.0F;
 	}
 
-	double total_start = 0.0F;
 	if (rank == 0) {
 		printf(SEPARATOR);
 		printf("Matrix size:            %dx%d\n", N, N);
 		printf("Maximum iterations:     %d\n", MAX_ITERATIONS);
 		printf("Convergence threshold:  %lf\n", CONVERGENCE_THRESHOLD);
 		printf(SEPARATOR);
-
-		double total_start = get_timestamp();
-
-		// Initialize random data
-		srand(SEED);
-		for (int row = 0; row < N; row++) {
-			float rowsum = 0.0;
-			for (int col = 0; col < N; col++) {
-				float value = rand()/(float)RAND_MAX;
-				A[row*N + col] = value;
-				rowsum += value;
-			}
-			A[row*N + row] += rowsum; // Add the row sum to the diagonal
-			b[row] = rand()/(float)RAND_MAX;
-		}
-		sendInitialData(A, b, x, size);
-	} else { // Rank != 0
-		recvInitialData(A, b, x);
 	}
 
-	// Ship out initialisation data
+	double total_start = get_timestamp();
+
+	// Initialize random data
+	srand(SEED);
+	for (int row = 0; row < N; row++) {
+		float rowsum = 0.0;
+		for (int col = 0; col < N; col++) {
+			float value = rand()/(float)RAND_MAX;
+			A[row*N + col] = value;
+			rowsum += value;
+		}
+		A[row*N + row] += rowsum; // Add the row sum to the diagonal
+		b[row] = rand()/(float)RAND_MAX;
+	}
 
 	// Run Jacobi solver
 	double solve_start = get_timestamp();
@@ -194,14 +250,16 @@ int main(int argc, char *argv[])
 
 	double total_end = get_timestamp();
 
-	printf("Solution error = %lf\n", err);
-	printf("Iterations     = %d\n", itr);
-	printf("Total runtime  = %lf seconds\n", (total_end-total_start));
-	printf("Solver runtime = %lf seconds\n", (solve_end-solve_start));
-	if (itr == MAX_ITERATIONS) {
-		printf("WARNING: solution did not converge\n");
+	if (rank == 0) {
+		printf("Solution error = %lf\n", err);
+		printf("Iterations     = %d\n", itr);
+		printf("Total runtime  = %lf seconds\n", (total_end-total_start));
+		printf("Solver runtime = %lf seconds\n", (solve_end-solve_start));
+		if (itr == MAX_ITERATIONS) {
+			printf("WARNING: solution did not converge\n");
+		}
+		printf(SEPARATOR);
 	}
-	printf(SEPARATOR);
 
 	_mm_free(A);
 	_mm_free(b);

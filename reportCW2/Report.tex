@@ -219,20 +219,22 @@ This shows a few points of interest. Firstly, it is immediately apparent how qui
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Conclusion}
+In conclusion, this report ventured upon new ground from the original with the advent of parallelism. However, it is clear to see that similar areas cause the most dramatic decrease in solve times; management of memory is still crucial in order to maintain the best performance from one's code! The main critical addition to this is also thread location, which can almost be thought of in a similar fashion to memory. Locality is key, and ensuring efficient movement of memory, or communication between cores is vital! \par
 
-
-
+The final best times for this report are listed below: \par
 
 \vspace{-0.2cm}
 \begin{table}[h]
 \begin{adjustwidth}{-0.15cm}{}
 \small
 \centering
-\begin{tabular}{c|c|c|c}
-    & \textbf{1000$\times$1000} & \textbf{2000$\times$2000} & \textbf{4000$\times$4000}   \\
-\textbf{\texttt{orig.}} & 10.895/10.878 & 131.856/131.760 & 1031.428/1030.911 \\
-\textbf{\texttt{opt.}} & 0.365/0.355 & 2.632/2.593 & 38.655/38.500 \\
-\textbf{\texttt{\% inc.}} & $2985\%$ & $5001\%$ & $2668\%$ \\
+\begin{tabular}{c|c}
+\textbf{500$\times$500}   &  \\
+\textbf{1000$\times$1000} &  \\
+\textbf{2000$\times$2000} &  \\
+\textbf{4000$\times$4000} &  \\
+\textbf{8000$\times$8000} &
+
 \end{tabular}
 \caption{}
 \label{finalResults}

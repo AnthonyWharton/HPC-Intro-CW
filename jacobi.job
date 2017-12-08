@@ -6,7 +6,7 @@
 #PBS -joe
 #PBS -q teaching
 #PBS -l nodes=1:ppn=16
-#PBS -l walltime=00:05:00
+#PBS -l walltime=00:01:30
 #PBS -l hostlist=\"node31-0[30-39]^\"
 
 # Change the following two variables to run number of threads from MIN to MAX
@@ -37,7 +37,9 @@ make -j 16 mpi-job
 cat $PBS_NODEFILE > ./bin/machine.file.$PBS_JOBID
 numprocs=`wc $PBS_NODEFILE | awk '{ print $1 }'`
 
-mpirun -np $numprocs -machinefile ./bin/machine.file.$PBS_JOBID \
+# mpirun -np $numprocs -machinefile ./bin/machine.file.$PBS_JOBID \
+#        ./bin/jacobi --norder 1000 --iterations 20000
+mpirun -np 2 -machinefile ./bin/machine.file.$PBS_JOBID \
        ./bin/jacobi --norder 1000 --iterations 20000
 
 # echo -e "\n\n\n================================\n\n\n"
